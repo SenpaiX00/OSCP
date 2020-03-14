@@ -2,13 +2,11 @@
 #
 # Exploit Title: Apache James Server 2.3.2 Authenticated User Remote Command Execution
 # Date: 16\10\2014
-# Exploit Author: Jakub Palaczynski, Marcin Woloszyn, Maciej Grabiec
-# Vendor Homepage: http://james.apache.org/server/
-# Software Link: http://ftp.ps.pl/pub/apache/james/server/apache-james-2.3.2.zip
 # Version: Apache James Server 2.3.2
 # Tested on: Ubuntu, Debian
 # Info: This exploit works on default installation of Apache James Server 2.3.2
 # Info: Example paths that will automatically execute payload on some action: /etc/bash_completion.d , /etc/pm/config.d
+# Info: Execute this python script, and it will create an shell the next time someone logs in via ssh to the server.
 
 import socket
 import sys
