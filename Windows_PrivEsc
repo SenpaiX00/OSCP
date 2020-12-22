@@ -1,0 +1,80 @@
+Windows includes a useful command called RunAs that enables a user to run a program as a different user if credentials are known. This is useful if we have compromised Administrator credentials on another machine, and we want to execute commands as an Administrator on a different computer. Let’s say you wanted to run a program called MathProgram.exe as the Administrator user, we could run something like this:
+HTML
+
+C:\> runas /user:Administrator "C:\User\Bob\Desktop\MathProgram.exe"
+
+The program would start up and prompt you for a password before it was executed as the Administrator user. This is nice if you sitting at the computer and have a GUI. The password prompt requires an interactive shell so the runas command can accept the password. A lot of the time during an engagement or CTF we don’t have an interactive shell and we can only execute commands. What do I mean by interactive shell?
+Interactive Shell
+
+An interactive shell has all the features you would imagine when you open up a command prompt. If you were to execute a .exe program that required inputs, it might look something like this:
+HTML
+
+C:\> MathProgram.exe
+
+Please enter the first number: 43
+
+Please enter the second number: 57
+
+​
+
+The sum of both numbers is: 100
+
+​
+
+C:>
+
+As we can see, we executed a program, and the program asked for inputs. This is what we see if we are sitting in front of the computer executing a command prompt. There are instances though where we compromise a box through a netcat reverse shell, and as many of you know, this does not provide us with a fully interactive shell. If we type in something, we are simply executing the command and we cannot provide any additional inputs for that command. This is what it would look like if we didn’t have a fully interactive shell:
+HTML
+
+C:\> MathProgram.exe
+
+C:\>
+
+We either have to fit it all in one line by passing arguments to the program, or figure out another way to do what we want because a non-interactive shell doesn’t let us pass anything else in.
+The Workaround
+
+So is there an option to run our MathProgram.exe with a /password: option?
+HTML
+
+C:\> runas /user:Administrator /Password:Pass123 "C:\User\Bob\Desktop\MathProgram.exe"
+
+Unfortunately this doesn’t work. Microsoft does this on purpose. Raymond Chen from Microsoft says: “This was a conscious decision. If it were possible to pass the password on the command line, people would start embedding passwords into batch files and logon scripts, which is laughably insecure.” Link to article.
+The Set-Up
+
+So we have a program we want to run, we have a shell as a low priv user, and we have the username and password of an admin user from a different machine, but because we have a non-interactive shell there is no option to input the password. What can we do? Let me set up a situation and provide the solution for the problem:
+
+Program we want to execute: msfvenom_payload.exe [A reverse shell]
+Low Priv User: Bob
+Admin User: Amanda
+Admin Pass: Pass123!
+Hostname of computer: workstation7
+
+Create a file called runme.ps1 (powershell file), and add the contents below to the file:
+PowerShell
+1
+
+$secpasswd = ConvertTo-SecureString "Pass123!" -AsPlainText -Force 
+
+2
+
+$mycreds = New-Object System.Management.Automation.PSCredential ("Amanda", $secpasswd)
+
+3
+
+$computer = "workstation7"
+
+4
+
+[System.Diagnostics.Process]::Start("C:\Users\Bob\Desktop\msfvenom_payload.exe","", $mycreds.Username, $mycreds.Password, $computer)
+
+Execution
+
+So now we have our file called runme.ps1 which saves the password and user as an object, then executes the program msfvenom_payload.exe as the admin user Amanda. All we need to do is copy over the runme.ps1 file to the target machine and execute it in a PowerShell prompt and we’re done!
+HTML
+
+C:\> powershell -ExecutionPolicy Bypass -File runme.ps1
+
+The program will be executed without any need for an interactive shell.
+Additional Considerations
+
+This article assumes you know how to copy files from one system to another, use Netcat, and create Msfvenom reverse shell payloads. If you have any questions about any of these, please reference any of these resource
